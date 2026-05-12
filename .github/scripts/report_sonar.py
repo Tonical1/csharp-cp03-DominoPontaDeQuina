@@ -99,6 +99,10 @@ def should_zero_score(base_ref: str) -> tuple[bool, list[str]]:
     return len(blocked) > 0, blocked
 
 
+def display_score(raw_score: float) -> float:
+    return raw_score / 10.0
+
+
 def main() -> None:
     token = os.environ["SONAR_TOKEN"]
     project_key = os.environ["SONAR_PROJECT_KEY"]
@@ -150,19 +154,23 @@ def main() -> None:
         summary.write("| Critério | Peso | Pontuação alcançada | Evidência automática |\n")
         summary.write("|---|---:|---:|---|\n")
         summary.write(
-            f"| Pipeline de testes | 50% | **{score_pipeline:.2f}** | Taxa de aprovação dos testes GAP: **{gap_pass_rate * 100:.2f}%** ({gap_passed}/{gap_total}) |\n"
+            f"| Pipeline de testes | 50% | **{display_score(score_pipeline):.2f}** | Taxa de aprovação dos testes GAP: **{gap_pass_rate * 100:.2f}%** ({gap_passed}/{gap_total}) |\n"
         )
         summary.write(
-            f"| Documentação do código | 10% | **{score_documentation:.2f}** | Sonar `new_lines` = **{total_new_lines}**, issues `documentation` = **{documentation_smells}** |\n"
+            f"| Documentação do código | 10% | **{display_score(score_documentation):.2f}** | Sonar `new_lines` = **{total_new_lines}**, issues `documentation` = **{documentation_smells}** |\n"
         )
         summary.write(
-            f"| Implementação de exceções customizadas | 10% | **{score_exception:.2f}** | Taxa de aprovação dos testes `Excecao`: **{exception_pass_rate * 100:.2f}%** ({exception_passed}/{exception_total}) |\n"
+            f"| Implementação de exceções customizadas | 10% | **{display_score(score_exception):.2f}** | Taxa de aprovação dos testes `Excecao`: **{exception_pass_rate * 100:.2f}%** ({exception_passed}/{exception_total}) |\n"
         )
         summary.write(
-            f"| Criação de serviços e validators organizando a lógica do software | 20% | **{score_services:.2f}** | Avaliação manual (não inferida automaticamente) |\n"
+            f"| Aderência às convenções do C# | 10% | **{display_score(score_convention):.2f}** | Sonar `new_lines` = **{total_new_lines}**, issues `convention` = **{convention_smells}** |\n"
         )
         summary.write(
-            f"| Aderência às convenções do C# | 10% | **{score_convention:.2f}** | Sonar `new_lines` = **{total_new_lines}**, issues `convention` = **{convention_smells}** |\n"
+            f"| Somatório dos pontos | 80% | **{display_score(score_pipeline + score_documentation + score_exception + score_convention):.2f}** | Pontuação parcial alcançada |\n"
+        )
+        summary.write("\n")
+        summary.write(
+            "> Observação: `Criação de serviços e validators organizando a lógica do software` `20%` `0.00` `Avaliação manual (não inferida automaticamente)`.\n"
         )
         summary.write("\n")
         summary.write("### SonarCloud\n")
