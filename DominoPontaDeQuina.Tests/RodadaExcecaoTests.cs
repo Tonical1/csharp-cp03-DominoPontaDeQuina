@@ -17,7 +17,7 @@ public class RodadaExcecaoTests
     {
         var rodada = new Rodada();
 
-        var ex = Assert.Throws<Exception>(() => rodada.RegistrarJogada(null!));
+        var ex = Assert.ThrowsAny<Exception>(() => rodada.RegistrarJogada(null!));
 
         Assert.NotNull(ex.GetType().Namespace);
         Assert.StartsWith("DominoPontaDeQuina", ex.GetType().Namespace);

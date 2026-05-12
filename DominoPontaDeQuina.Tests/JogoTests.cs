@@ -17,7 +17,7 @@ public class JogoTests
     {
         var jogo = new Jogo();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => jogo.ExecutarJogadaAsync());
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() => jogo.ExecutarJogadaAsync());
 
         Assert.NotNull(ex.GetType().Namespace);
         Assert.StartsWith("DominoPontaDeQuina", ex.GetType().Namespace);
@@ -33,7 +33,7 @@ public class JogoTests
     {
         var jogo = new Jogo();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => jogo.GetJogadaAsync());
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() => jogo.GetJogadaAsync());
 
         Assert.NotNull(ex.GetType().Namespace);
         Assert.StartsWith("DominoPontaDeQuina", ex.GetType().Namespace);
