@@ -1,0 +1,85 @@
+name: Validate Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj
+
+      - name: Build
+        run: dotnet build DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj --configuration Release --no-restore
+
+      - name: Run BASIC tests (TRX)
+        id: run_basic
+        continue-on-error: true
+        run: |
+          mkdir -p TestResults
+          dotnet test DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity minimal \
+            --filter "Categoria=Basico" \
+            --logger "trx;LogFileName=basic-tests.trx" \
+            --results-directory TestResults
+
+      - name: Run GAP tests (TRX)
+        id: run_gap
+        continue-on-error: true
+        run: |
+          mkdir -p TestResults
+          dotnet test DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity minimal \
+            --filter "Categoria=Gap" \
+            --logger "trx;LogFileName=gap-tests.trx" \
+            --results-directory TestResults
+
+      - name: Test report (Básicos x Gaps)
+        id: test_report
+        shell: bash
+        run: |
+          BASIC_TRX="TestResults/basic-tests.trx"
+          GAP_TRX="TestResults/gap-tests.trx"
+
+          if [ ! -f "$BASIC_TRX" ] || [ ! -f "$GAP_TRX" ]; then
+            echo "Arquivos TRX esperados não encontrados."
+            echo "basic_failed=1" >> "$GITHUB_OUTPUT"
+            echo "gap_failed=1" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          python3 .github/scripts/report_trx.py
+
+      - name: Upload TRX artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-trx
+          path: |
+            TestResults/basic-tests.trx
+            TestResults/gap-tests.trx
+          if-no-files-found: warn
+
+      - name: Fail workflow if any test failed
+        if: steps.test_report.outputs.basic_failed != '0' || steps.test_report.outputs.gap_failed != '0'
+        run: |
+          echo "Há falhas nos testes. Gap%: ${{ steps.test_report.outputs.gap_percentage }}"
+          exit 1
