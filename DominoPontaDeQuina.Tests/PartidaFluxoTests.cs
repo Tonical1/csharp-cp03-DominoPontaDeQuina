@@ -56,7 +56,7 @@ public class PartidaFluxoTests
     {
         var partida = new Partida();
 
-        var ex = Assert.Throws<Exception>(() => partida.FinalizarPartida());
+        var ex = Assert.ThrowsAny<Exception>(() => partida.FinalizarPartida());
 
         Assert.NotNull(ex.GetType().Namespace);
         Assert.StartsWith("DominoPontaDeQuina", ex.GetType().Namespace);
@@ -74,7 +74,7 @@ public class PartidaFluxoTests
         var statusField = typeof(Partida).GetField("<Status>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)!;
         statusField.SetValue(partida, StatusPartida.Finalizada);
 
-        var ex = Assert.Throws<Exception>(() => partida.IniciarNovaRodada());
+        var ex = Assert.ThrowsAny<Exception>(() => partida.IniciarNovaRodada());
 
         Assert.NotNull(ex.GetType().Namespace);
         Assert.StartsWith("DominoPontaDeQuina", ex.GetType().Namespace);
