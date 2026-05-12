@@ -35,11 +35,11 @@ jobs:
           dotnet test DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj \
             --configuration Release \
             --no-build \
-            --verbosity normal \
+            --verbosity minimal \
             --logger "trx;LogFileName=test-results.trx" \
             --results-directory TestResults
 
-      - name: Test report (pass percentage)
+      - name: Test report (pass percentage + status table)
         id: test_report
         shell: bash
         run: |
@@ -51,36 +51,64 @@ jobs:
             exit 1
           fi
 
-          counters_line=$(grep -o '<Counters[^>]*/>' "$TRX_FILE" | head -n1)
+          python3 - <<'PY'
+import os
+import xml.etree.ElementTree as ET
 
-          total=$(echo "$counters_line" | sed -n 's/.* total="\([0-9]*\)".*/\1/p')
-          passed=$(echo "$counters_line" | sed -n 's/.* passed="\([0-9]*\)".*/\1/p')
-          failed=$(echo "$counters_line" | sed -n 's/.* failed="\([0-9]*\)".*/\1/p')
-          skipped=$(echo "$counters_line" | sed -n 's/.* notExecuted="\([0-9]*\)".*/\1/p')
+trx_file = "TestResults/test-results.trx"
+tree = ET.parse(trx_file)
+root = tree.getroot()
 
-          total=${total:-0}
-          passed=${passed:-0}
-          failed=${failed:-0}
-          skipped=${skipped:-0}
+ns = {"trx": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
 
-          if [ "$total" -gt 0 ]; then
-            percentage=$(awk "BEGIN { printf \"%.2f\", ($passed/$total)*100 }")
-          else
-            percentage="0.00"
-          fi
+def find_text(path, default="0"):
+    el = root.find(path, ns)
+    return el.text if el is not None and el.text else default
 
-          echo "### Relatório de Testes" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Total: $total" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Passou: $passed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Falhou: $failed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Ignorados: $skipped" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Percentual de aprovação: **$percentage%**" >> "$GITHUB_STEP_SUMMARY"
+counters = root.find("trx:ResultSummary/trx:Counters", ns)
+if counters is None:
+    total = passed = failed = skipped = 0
+else:
+    total = int(counters.attrib.get("total", "0"))
+    passed = int(counters.attrib.get("passed", "0"))
+    failed = int(counters.attrib.get("failed", "0"))
+    skipped = int(counters.attrib.get("notExecuted", "0"))
 
-          echo "total=$total" >> "$GITHUB_OUTPUT"
-          echo "passed=$passed" >> "$GITHUB_OUTPUT"
-          echo "failed=$failed" >> "$GITHUB_OUTPUT"
-          echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
-          echo "percentage=$percentage" >> "$GITHUB_OUTPUT"
+percentage = (passed / total * 100) if total > 0 else 0.0
+
+results = root.findall("trx:Results/trx:UnitTestResult", ns)
+rows = []
+for r in results:
+    name = r.attrib.get("testName", "(sem nome)")
+    outcome = r.attrib.get("outcome", "Unknown")
+    rows.append((name, outcome))
+
+rows.sort(key=lambda x: x[0].lower())
+
+summary_path = os.environ["GITHUB_STEP_SUMMARY"]
+with open(summary_path, "a", encoding="utf-8") as f:
+    f.write("### Relatório de Testes\n")
+    f.write(f"- Total: {total}\n")
+    f.write(f"- Passou: {passed}\n")
+    f.write(f"- Falhou: {failed}\n")
+    f.write(f"- Ignorados: {skipped}\n")
+    f.write(f"- Percentual de aprovação: **{percentage:.2f}%**\n\n")
+
+    f.write("### Tabela de Testes\n")
+    f.write("| Teste | Status |\n")
+    f.write("|---|---|\n")
+    for name, outcome in rows:
+        safe_name = name.replace("|", "\\|")
+        f.write(f"| {safe_name} | {outcome} |\n")
+
+output_path = os.environ["GITHUB_OUTPUT"]
+with open(output_path, "a", encoding="utf-8") as f:
+    f.write(f"total={total}\n")
+    f.write(f"passed={passed}\n")
+    f.write(f"failed={failed}\n")
+    f.write(f"skipped={skipped}\n")
+    f.write(f"percentage={percentage:.2f}\n")
+PY
 
       - name: Upload TRX artifact
         uses: actions/upload-artifact@v4
