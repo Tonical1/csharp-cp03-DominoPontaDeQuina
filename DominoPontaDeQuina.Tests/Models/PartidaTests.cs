@@ -6,6 +6,7 @@ namespace DominoPontaDeQuina.Tests.Models;
 /// <summary>
 /// Testes da classe Partida - gerencia o nível mais alto da hierarquia do jogo.
 /// </summary>
+[Trait("Categoria", "Basico")]
 public class PartidaTests
 {
     #region Status da Partida

@@ -3,6 +3,7 @@ using DominoPontaDeQuina.Core.Models;
 
 namespace DominoPontaDeQuina.Core.Tests;
 
+[Trait("Categoria", "Gap")]
 public class TabuleiroGapTests
 {
     /// <summary>

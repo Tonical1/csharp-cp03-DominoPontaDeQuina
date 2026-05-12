@@ -27,8 +27,8 @@ jobs:
       - name: Build
         run: dotnet build DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj --configuration Release --no-restore
 
-      - name: Run tests (TRX)
-        id: run_tests
+      - name: Run BASIC tests (TRX)
+        id: run_basic
         continue-on-error: true
         run: |
           mkdir -p TestResults
@@ -36,87 +36,50 @@ jobs:
             --configuration Release \
             --no-build \
             --verbosity minimal \
-            --logger "trx;LogFileName=test-results.trx" \
+            --filter "Categoria=Basico" \
+            --logger "trx;LogFileName=basic-tests.trx" \
             --results-directory TestResults
 
-      - name: Test report (pass percentage + status table)
+      - name: Run GAP tests (TRX)
+        id: run_gap
+        continue-on-error: true
+        run: |
+          mkdir -p TestResults
+          dotnet test DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity minimal \
+            --filter "Categoria=Gap" \
+            --logger "trx;LogFileName=gap-tests.trx" \
+            --results-directory TestResults
+
+      - name: Test report (Básicos x Gaps)
         id: test_report
         shell: bash
         run: |
-          TRX_FILE="TestResults/test-results.trx"
+          BASIC_TRX="TestResults/basic-tests.trx"
+          GAP_TRX="TestResults/gap-tests.trx"
 
-          if [ ! -f "$TRX_FILE" ]; then
-            echo "Arquivo TRX não encontrado em $TRX_FILE"
-            echo "failed=1" >> "$GITHUB_OUTPUT"
+          if [ ! -f "$BASIC_TRX" ] || [ ! -f "$GAP_TRX" ]; then
+            echo "Arquivos TRX esperados não encontrados."
+            echo "basic_failed=1" >> "$GITHUB_OUTPUT"
+            echo "gap_failed=1" >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
-          cat > parse_trx.py <<'PY'
-          import os
-          import xml.etree.ElementTree as ET
+          python3 .github/scripts/report_trx.py
 
-          trx_file = "TestResults/test-results.trx"
-          tree = ET.parse(trx_file)
-          root = tree.getroot()
-
-          ns = {"trx": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
-
-          counters = root.find("trx:ResultSummary/trx:Counters", ns)
-          if counters is None:
-              total = passed = failed = skipped = 0
-          else:
-              total = int(counters.attrib.get("total", "0"))
-              passed = int(counters.attrib.get("passed", "0"))
-              failed = int(counters.attrib.get("failed", "0"))
-              skipped = int(counters.attrib.get("notExecuted", "0"))
-
-          percentage = (passed / total * 100) if total > 0 else 0.0
-
-          results = root.findall("trx:Results/trx:UnitTestResult", ns)
-          rows = []
-          for r in results:
-              name = r.attrib.get("testName", "(sem nome)")
-              outcome = r.attrib.get("outcome", "Unknown")
-              rows.append((name, outcome))
-
-          rows.sort(key=lambda x: x[0].lower())
-
-          summary_path = os.environ["GITHUB_STEP_SUMMARY"]
-          with open(summary_path, "a", encoding="utf-8") as f:
-              f.write("### Relatório de Testes\n")
-              f.write(f"- Total: {total}\n")
-              f.write(f"- Passou: {passed}\n")
-              f.write(f"- Falhou: {failed}\n")
-              f.write(f"- Ignorados: {skipped}\n")
-              f.write(f"- Percentual de aprovação: **{percentage:.2f}%**\n\n")
-
-              f.write("### Tabela de Testes\n")
-              f.write("| Teste | Status |\n")
-              f.write("|---|---|\n")
-              for name, outcome in rows:
-                  safe_name = name.replace("|", "\\|")
-                  f.write(f"| {safe_name} | {outcome} |\n")
-
-          output_path = os.environ["GITHUB_OUTPUT"]
-          with open(output_path, "a", encoding="utf-8") as f:
-              f.write(f"total={total}\n")
-              f.write(f"passed={passed}\n")
-              f.write(f"failed={failed}\n")
-              f.write(f"skipped={skipped}\n")
-              f.write(f"percentage={percentage:.2f}\n")
-          PY
-
-          python3 parse_trx.py
-
-      - name: Upload TRX artifact
+      - name: Upload TRX artifacts
         uses: actions/upload-artifact@v4
         with:
           name: test-results-trx
-          path: TestResults/test-results.trx
+          path: |
+            TestResults/basic-tests.trx
+            TestResults/gap-tests.trx
           if-no-files-found: warn
 
-      - name: Fail workflow if tests failed
-        if: steps.test_report.outputs.failed != '0'
+      - name: Fail workflow if any test failed
+        if: steps.test_report.outputs.basic_failed != '0' || steps.test_report.outputs.gap_failed != '0'
         run: |
-          echo "Foram detectados testes falhando. Percentual de aprovação: ${{ steps.test_report.outputs.percentage }}%"
+          echo "Há falhas nos testes. Gap%: ${{ steps.test_report.outputs.gap_percentage }}"
           exit 1

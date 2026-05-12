@@ -7,6 +7,7 @@ namespace DominoPontaDeQuina.Tests.Models;
 /// <summary>
 /// Testes de comportamento esperado da classe Rodada para métodos ainda não implementados.
 /// </summary>
+[Trait("Categoria", "Gap")]
 public class RodadaGapTests
 {
     /// <summary>

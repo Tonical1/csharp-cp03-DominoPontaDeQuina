@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 
 namespace DominoPontaDeQuina.Core.Tests;
 
+[Trait("Categoria", "Gap")]
 public class RodadaGapTests
 {
     /// <summary>

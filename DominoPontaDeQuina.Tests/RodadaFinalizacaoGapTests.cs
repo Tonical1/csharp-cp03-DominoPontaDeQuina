@@ -4,6 +4,7 @@ using System.Reflection;
 
 namespace DominoPontaDeQuina.Core.Tests;
 
+[Trait("Categoria", "Gap")]
 public class RodadaFinalizacaoGapTests
 {
     /// <summary>

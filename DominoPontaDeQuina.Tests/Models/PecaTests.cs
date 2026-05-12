@@ -5,6 +5,7 @@ namespace DominoPontaDeQuina.Tests.Models;
 /// <summary>
 /// Testes da classe Peca - a unidade básica do domínio do jogo.
 /// </summary>
+[Trait("Categoria", "Basico")]
 public class PecaTests
 {
     #region SomaValores
