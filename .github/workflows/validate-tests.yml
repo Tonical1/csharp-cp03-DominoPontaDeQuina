@@ -112,6 +112,19 @@ jobs:
             --logger "trx;LogFileName=exception-tests.trx" \
             --results-directory TestResults
 
+      - name: SonarCloud End
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+      - name: Consolidated evaluation report (tests + sonar)
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.base_ref }}
+        run: python3 .github/scripts/report_sonar.py
+
       - name: Test report (Básicos x Gaps x Exceções)
         id: test_report
         shell: bash
@@ -139,21 +152,6 @@ jobs:
             TestResults/gap-tests.trx
             TestResults/exception-tests.trx
           if-no-files-found: warn
-
-      - name: SonarCloud End
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-
-      - name: Consolidated evaluation report (tests + sonar)
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          BASIC_FAILED: ${{ steps.test_report.outputs.basic_failed }}
-          GAP_FAILED: ${{ steps.test_report.outputs.gap_failed }}
-          EXCEPTION_FAILED: ${{ steps.test_report.outputs.exception_failed }}
-        run: python3 .github/scripts/report_sonar.py
 
       - name: Fail workflow if any test failed
         if: steps.test_report.outputs.basic_failed != '0' || steps.test_report.outputs.gap_failed != '0' || steps.test_report.outputs.exception_failed != '0'
