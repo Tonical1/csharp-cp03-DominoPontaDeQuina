@@ -145,11 +145,15 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
-      - name: SonarCloud summary
-        run: |
-          echo "## SonarCloud" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Projeto: https://sonarcloud.io/project/overview?id=$SONAR_PROJECT_KEY" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: análise concluída (Quality Gate avaliado na execução)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Consolidated evaluation report (tests + sonar)
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASIC_FAILED: ${{ steps.test_report.outputs.basic_failed }}
+          GAP_FAILED: ${{ steps.test_report.outputs.gap_failed }}
+          EXCEPTION_FAILED: ${{ steps.test_report.outputs.exception_failed }}
+        run: python3 .github/scripts/report_sonar.py
 
       - name: Fail workflow if any test failed
         if: steps.test_report.outputs.basic_failed != '0' || steps.test_report.outputs.gap_failed != '0' || steps.test_report.outputs.exception_failed != '0'
