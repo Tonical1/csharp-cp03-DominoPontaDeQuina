@@ -27,5 +27,70 @@ jobs:
       - name: Build
         run: dotnet build DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj --configuration Release --no-restore
 
-      - name: Run tests
-        run: dotnet test DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj --configuration Release --no-build --verbosity normal
+      - name: Run tests (TRX)
+        id: run_tests
+        continue-on-error: true
+        run: |
+          mkdir -p TestResults
+          dotnet test DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx" \
+            --results-directory TestResults
+
+      - name: Test report (pass percentage)
+        id: test_report
+        shell: bash
+        run: |
+          TRX_FILE="TestResults/test-results.trx"
+
+          if [ ! -f "$TRX_FILE" ]; then
+            echo "Arquivo TRX não encontrado em $TRX_FILE"
+            echo "failed=1" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          counters_line=$(grep -o '<Counters[^>]*/>' "$TRX_FILE" | head -n1)
+
+          total=$(echo "$counters_line" | sed -n 's/.* total="\([0-9]*\)".*/\1/p')
+          passed=$(echo "$counters_line" | sed -n 's/.* passed="\([0-9]*\)".*/\1/p')
+          failed=$(echo "$counters_line" | sed -n 's/.* failed="\([0-9]*\)".*/\1/p')
+          skipped=$(echo "$counters_line" | sed -n 's/.* notExecuted="\([0-9]*\)".*/\1/p')
+
+          total=${total:-0}
+          passed=${passed:-0}
+          failed=${failed:-0}
+          skipped=${skipped:-0}
+
+          if [ "$total" -gt 0 ]; then
+            percentage=$(awk "BEGIN { printf \"%.2f\", ($passed/$total)*100 }")
+          else
+            percentage="0.00"
+          fi
+
+          echo "### Relatório de Testes" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Total: $total" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Passou: $passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Falhou: $failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Ignorados: $skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Percentual de aprovação: **$percentage%**" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
+          echo "percentage=$percentage" >> "$GITHUB_OUTPUT"
+
+      - name: Upload TRX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-trx
+          path: TestResults/test-results.trx
+          if-no-files-found: warn
+
+      - name: Fail workflow if tests failed
+        if: steps.test_report.outputs.failed != '0'
+        run: |
+          echo "Foram detectados testes falhando. Percentual de aprovação: ${{ steps.test_report.outputs.percentage }}%"
+          exit 1
