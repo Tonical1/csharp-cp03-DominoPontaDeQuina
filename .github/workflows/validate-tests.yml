@@ -53,17 +53,32 @@ jobs:
             --logger "trx;LogFileName=gap-tests.trx" \
             --results-directory TestResults
 
-      - name: Test report (Básicos x Gaps)
+      - name: Run EXCEPTION tests (TRX)
+        id: run_exception
+        continue-on-error: true
+        run: |
+          mkdir -p TestResults
+          dotnet test DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity minimal \
+            --filter "Categoria=Excecao" \
+            --logger "trx;LogFileName=exception-tests.trx" \
+            --results-directory TestResults
+
+      - name: Test report (Básicos x Gaps x Exceções)
         id: test_report
         shell: bash
         run: |
           BASIC_TRX="TestResults/basic-tests.trx"
           GAP_TRX="TestResults/gap-tests.trx"
+          EXCEPTION_TRX="TestResults/exception-tests.trx"
 
-          if [ ! -f "$BASIC_TRX" ] || [ ! -f "$GAP_TRX" ]; then
+          if [ ! -f "$BASIC_TRX" ] || [ ! -f "$GAP_TRX" ] || [ ! -f "$EXCEPTION_TRX" ]; then
             echo "Arquivos TRX esperados não encontrados."
             echo "basic_failed=1" >> "$GITHUB_OUTPUT"
             echo "gap_failed=1" >> "$GITHUB_OUTPUT"
+            echo "exception_failed=1" >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
@@ -76,10 +91,11 @@ jobs:
           path: |
             TestResults/basic-tests.trx
             TestResults/gap-tests.trx
+            TestResults/exception-tests.trx
           if-no-files-found: warn
 
       - name: Fail workflow if any test failed
-        if: steps.test_report.outputs.basic_failed != '0' || steps.test_report.outputs.gap_failed != '0'
+        if: steps.test_report.outputs.basic_failed != '0' || steps.test_report.outputs.gap_failed != '0' || steps.test_report.outputs.exception_failed != '0'
         run: |
           echo "Há falhas nos testes. Gap%: ${{ steps.test_report.outputs.gap_percentage }}"
           exit 1
