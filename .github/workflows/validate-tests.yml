@@ -1,4 +1,4 @@
-name: Validate Tests
+name: Validate Tests + SonarCloud
 
 on:
   push:
@@ -9,17 +9,63 @@ on:
       - main
 
 jobs:
-  test:
+  test-and-sonar:
     runs-on: ubuntu-latest
+    env:
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Validate Sonar configuration
+        run: |
+          if [ -z "$SONAR_ORGANIZATION" ]; then
+            echo "Variável SONAR_ORGANIZATION não configurada em Settings > Secrets and variables > Actions > Variables"
+            exit 1
+          fi
+
+          if [ -z "$SONAR_PROJECT_KEY" ]; then
+            echo "Variável SONAR_PROJECT_KEY não configurada em Settings > Secrets and variables > Actions > Variables"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "Secret SONAR_TOKEN não configurado em Settings > Secrets and variables > Actions > Secrets"
+            exit 1
+          fi
+
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: SonarCloud Begin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin \
+            /o:"$SONAR_ORGANIZATION" \
+            /k:"$SONAR_PROJECT_KEY" \
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.newCode.referenceBranch="main" \
+            /d:sonar.sources="DominoPontaDeQuina.Core" \
+            /d:sonar.inclusions="**/*.cs" \
+            /d:sonar.exclusions="**/bin/**,**/obj/**,DominoPontaDeQuina.Tests/**"
 
       - name: Restore
         run: dotnet restore DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj
@@ -93,6 +139,17 @@ jobs:
             TestResults/gap-tests.trx
             TestResults/exception-tests.trx
           if-no-files-found: warn
+
+      - name: SonarCloud End
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+      - name: SonarCloud summary
+        run: |
+          echo "## SonarCloud" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Projeto: https://sonarcloud.io/project/overview?id=$SONAR_PROJECT_KEY" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: análise concluída (Quality Gate avaliado na execução)." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail workflow if any test failed
         if: steps.test_report.outputs.basic_failed != '0' || steps.test_report.outputs.gap_failed != '0' || steps.test_report.outputs.exception_failed != '0'
