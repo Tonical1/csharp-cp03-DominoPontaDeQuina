@@ -57,9 +57,11 @@ def write_section(summary_file, title: str, data):
 def main():
     basic_path = "TestResults/basic-tests.trx"
     gap_path = "TestResults/gap-tests.trx"
+    exception_path = "TestResults/exception-tests.trx"
 
     basic = parse_trx(basic_path)
     gap = parse_trx(gap_path)
+    exception = parse_trx(exception_path)
 
     gap_contrib = gap["percentage"] * 0.5
 
@@ -68,10 +70,12 @@ def main():
         summary.write("## Relatório de Execução dos Testes\n\n")
         summary.write("Separação por label de categoria:\n")
         summary.write("- `Categoria=Basico`: testes de referência (regressão)\n")
-        summary.write("- `Categoria=Gap`: testes avaliativos dos gaps de implementação\n\n")
+        summary.write("- `Categoria=Gap`: testes avaliativos dos gaps de implementação\n")
+        summary.write("- `Categoria=Excecao`: testes que validam disparo de exceções do projeto \n\n")
 
         write_section(summary, "Testes Básicos", basic)
         write_section(summary, "Testes de Gap", gap)
+        write_section(summary, "Testes de Exceção", exception)
 
         summary.write("### Critério de Nota (Gaps = 50%)\n")
         summary.write(f"- Percentual dos testes de gap: **{gap['percentage']:.2f}%**\n")
@@ -81,8 +85,10 @@ def main():
     with open(output_path, "a", encoding="utf-8") as output:
         output.write(f"basic_failed={basic['failed']}\n")
         output.write(f"gap_failed={gap['failed']}\n")
+        output.write(f"exception_failed={exception['failed']}\n")
         output.write(f"gap_percentage={gap['percentage']:.2f}\n")
 
 
 if __name__ == "__main__":
     main()
+
