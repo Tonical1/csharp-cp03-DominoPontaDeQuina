@@ -8,6 +8,9 @@ on:
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
+    env:
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
 
     steps:
       - name: Checkout
@@ -26,6 +29,23 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Validate Sonar configuration
+        run: |
+          if [ -z "$SONAR_ORGANIZATION" ]; then
+            echo "Variável SONAR_ORGANIZATION não configurada em Settings > Secrets and variables > Actions > Variables"
+            exit 1
+          fi
+
+          if [ -z "$SONAR_PROJECT_KEY" ]; then
+            echo "Variável SONAR_PROJECT_KEY não configurada em Settings > Secrets and variables > Actions > Variables"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "Secret SONAR_TOKEN não configurado em Settings > Secrets and variables > Actions > Secrets"
+            exit 1
+          fi
+
       - name: Install SonarScanner for .NET
         run: dotnet tool install --global dotnet-sonarscanner
 
@@ -34,8 +54,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           dotnet sonarscanner begin \
-            /o:"${{ vars.SONAR_ORGANIZATION }}" \
-            /k:"${{ vars.SONAR_PROJECT_KEY }}" \
+            /o:"$SONAR_ORGANIZATION" \
+            /k:"$SONAR_PROJECT_KEY" \
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.qualitygate.wait=true \
