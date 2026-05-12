@@ -3,4 +3,5 @@
     <File Path=".editorconfig" />
   </Folder>
   <Project Path="DominoPontaDeQuina.Core/DominoPontaDeQuina.Core.csproj" />
+  <Project Path="DominoPontaDeQuina.Tests/DominoPontaDeQuina.Tests.csproj" />
 </Solution>
