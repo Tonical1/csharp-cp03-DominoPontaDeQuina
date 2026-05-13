@@ -136,37 +136,7 @@ def main() -> None:
     pr_number = os.environ.get("PR_NUMBER", "")
     base_ref = os.environ.get("BASE_REF", "")
 
-    qg_status = quality_gate_status(token, project_key, pr_number)
-    convention_smells = issues_total(token, project_key, pr_number, "convention")
-    documentation_smells = issues_total(token, project_key, pr_number, "documentation")
-    total_new_lines = new_lines(token, project_key, pr_number)
-    total_changed_lines = changed_lines(base_ref)
-    total_scoped_lines = total_new_lines + total_changed_lines
-
-    basic_total, basic_passed, basic_failed = trx_stats("TestResults/basic-tests.trx")
-    gap_total, gap_passed, gap_failed = trx_stats("TestResults/gap-tests.trx")
-    exception_total, exception_passed, exception_failed = trx_stats("TestResults/exception-tests.trx")
-
-    gap_pass_rate = (gap_passed / gap_total) if gap_total > 0 else 0.0
-    exception_pass_rate = (exception_passed / exception_total) if exception_total > 0 else 0.0
-
-    score_pipeline = 50.0 * gap_pass_rate
-    if total_scoped_lines <= 0:
-        score_documentation = 0.0
-        score_convention = 0.0
-    else:
-        score_documentation = max(0.0, 10.0 * (1.0 - (documentation_smells / total_scoped_lines)))
-        score_convention = max(0.0, 10.0 * (1.0 - (convention_smells / total_scoped_lines)))
-    score_exception = 10.0 * exception_pass_rate
-    score_services = 0.0
-
     zero_score, blocked_files = should_zero_score(base_ref)
-    if zero_score:
-        score_pipeline = 0.0
-        score_documentation = 0.0
-        score_exception = 0.0
-        score_services = 0.0
-        score_convention = 0.0
 
     summary_path = os.environ["GITHUB_STEP_SUMMARY"]
     with open(summary_path, "a", encoding="utf-8") as summary:
@@ -178,7 +148,39 @@ def main() -> None:
             summary.write("Arquivos detectados:\n")
             for file in blocked_files:
                 summary.write(f"- `{file}`\n")
-            summary.write("\n")
+            return
+
+        qg_status = quality_gate_status(token, project_key, pr_number)
+        convention_smells = issues_total(token, project_key, pr_number, "convention")
+        documentation_smells = issues_total(token, project_key, pr_number, "documentation")
+        total_new_lines = new_lines(token, project_key, pr_number)
+        total_changed_lines = changed_lines(base_ref)
+        total_scoped_lines = total_new_lines + total_changed_lines
+
+        basic_total, basic_passed, basic_failed = trx_stats("TestResults/basic-tests.trx")
+        gap_total, gap_passed, gap_failed = trx_stats("TestResults/gap-tests.trx")
+        exception_total, exception_passed, exception_failed = trx_stats("TestResults/exception-tests.trx")
+
+        gap_pass_rate = (gap_passed / gap_total) if gap_total > 0 else 0.0
+        exception_pass_rate = (exception_passed / exception_total) if exception_total > 0 else 0.0
+
+        score_pipeline = 50.0 * gap_pass_rate
+        if total_scoped_lines <= 0:
+            score_documentation = 0.0
+            score_convention = 0.0
+        else:
+            score_documentation = max(0.0, 10.0 * (1.0 - (documentation_smells / total_scoped_lines)))
+            score_convention = max(0.0, 10.0 * (1.0 - (convention_smells / total_scoped_lines)))
+        score_exception = 10.0 * exception_pass_rate
+        score_services = 0.0
+
+        zero_score, blocked_files = should_zero_score(base_ref)
+        if zero_score:
+            score_pipeline = 0.0
+            score_documentation = 0.0
+            score_exception = 0.0
+            score_services = 0.0
+            score_convention = 0.0
 
         summary.write("| Critério | Peso | Pontuação alcançada | Evidência automática |\n")
         summary.write("|---|---:|---:|---|\n")
