@@ -121,7 +121,9 @@ def should_zero_score(base_ref: str) -> tuple[bool, list[str]]:
     changed_files = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
     blocked = [
         f for f in changed_files
-        if f.startswith("DominoPontaDeQuina.Tests/") or f.startswith(".github/workflows/")
+        if f.startswith("DominoPontaDeQuina.Tests/")
+        or f.startswith(".github/workflows/")
+        or f.startswith(".github/scripts/")
     ]
     return len(blocked) > 0, blocked
 
