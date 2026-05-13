@@ -64,6 +64,33 @@ def new_lines(token: str, project_key: str, pr_number: str) -> int:
     return int(float(measures[0].get("value", "0")))
 
 
+def changed_lines(base_ref: str) -> int:
+    if not base_ref:
+        return 0
+
+    subprocess.run(["git", "fetch", "origin", base_ref, "--depth=1"], check=False)
+    proc = subprocess.run(
+        ["git", "diff", "--numstat", f"origin/{base_ref}...HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    total = 0
+    for line in proc.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+
+        added, deleted = parts[0], parts[1]
+        if added.isdigit():
+            total += int(added)
+        if deleted.isdigit():
+            total += int(deleted)
+
+    return total
+
+
 def trx_stats(path: str) -> tuple[int, int, int]:
     if not os.path.exists(path):
         return 0, 0, 0
@@ -94,7 +121,9 @@ def should_zero_score(base_ref: str) -> tuple[bool, list[str]]:
     changed_files = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
     blocked = [
         f for f in changed_files
-        if f.startswith("DominoPontaDeQuina.Tests/") or f.startswith(".github/workflows/")
+        if f.startswith("DominoPontaDeQuina.Tests/")
+        or f.startswith(".github/workflows/")
+        or f.startswith(".github/scripts/")
     ]
     return len(blocked) > 0, blocked
 
@@ -109,35 +138,7 @@ def main() -> None:
     pr_number = os.environ.get("PR_NUMBER", "")
     base_ref = os.environ.get("BASE_REF", "")
 
-    qg_status = quality_gate_status(token, project_key, pr_number)
-    convention_smells = issues_total(token, project_key, pr_number, "convention")
-    documentation_smells = issues_total(token, project_key, pr_number, "documentation")
-    total_new_lines = new_lines(token, project_key, pr_number)
-
-    basic_total, basic_passed, basic_failed = trx_stats("TestResults/basic-tests.trx")
-    gap_total, gap_passed, gap_failed = trx_stats("TestResults/gap-tests.trx")
-    exception_total, exception_passed, exception_failed = trx_stats("TestResults/exception-tests.trx")
-
-    gap_pass_rate = (gap_passed / gap_total) if gap_total > 0 else 0.0
-    exception_pass_rate = (exception_passed / exception_total) if exception_total > 0 else 0.0
-
-    score_pipeline = 50.0 * gap_pass_rate
-    if total_new_lines <= 0:
-        score_documentation = 0.0
-        score_convention = 0.0
-    else:
-        score_documentation = max(0.0, 10.0 * (1.0 - (documentation_smells / total_new_lines)))
-        score_convention = max(0.0, 10.0 * (1.0 - (convention_smells / total_new_lines)))
-    score_exception = 10.0 * exception_pass_rate
-    score_services = 0.0
-
     zero_score, blocked_files = should_zero_score(base_ref)
-    if zero_score:
-        score_pipeline = 0.0
-        score_documentation = 0.0
-        score_exception = 0.0
-        score_services = 0.0
-        score_convention = 0.0
 
     summary_path = os.environ["GITHUB_STEP_SUMMARY"]
     with open(summary_path, "a", encoding="utf-8") as summary:
@@ -149,7 +150,39 @@ def main() -> None:
             summary.write("Arquivos detectados:\n")
             for file in blocked_files:
                 summary.write(f"- `{file}`\n")
-            summary.write("\n")
+            return
+
+        qg_status = quality_gate_status(token, project_key, pr_number)
+        convention_smells = issues_total(token, project_key, pr_number, "convention")
+        documentation_smells = issues_total(token, project_key, pr_number, "documentation")
+        total_new_lines = new_lines(token, project_key, pr_number)
+        total_changed_lines = changed_lines(base_ref)
+        total_scoped_lines = total_new_lines + total_changed_lines
+
+        basic_total, basic_passed, basic_failed = trx_stats("TestResults/basic-tests.trx")
+        gap_total, gap_passed, gap_failed = trx_stats("TestResults/gap-tests.trx")
+        exception_total, exception_passed, exception_failed = trx_stats("TestResults/exception-tests.trx")
+
+        gap_pass_rate = (gap_passed / gap_total) if gap_total > 0 else 0.0
+        exception_pass_rate = (exception_passed / exception_total) if exception_total > 0 else 0.0
+
+        score_pipeline = 50.0 * gap_pass_rate
+        if total_scoped_lines <= 0:
+            score_documentation = 0.0
+            score_convention = 0.0
+        else:
+            score_documentation = max(0.0, 10.0 * (1.0 - (documentation_smells / total_scoped_lines)))
+            score_convention = max(0.0, 10.0 * (1.0 - (convention_smells / total_scoped_lines)))
+        score_exception = 10.0 * exception_pass_rate
+        score_services = 0.0
+
+        zero_score, blocked_files = should_zero_score(base_ref)
+        if zero_score:
+            score_pipeline = 0.0
+            score_documentation = 0.0
+            score_exception = 0.0
+            score_services = 0.0
+            score_convention = 0.0
 
         summary.write("| Critério | Peso | Pontuação alcançada | Evidência automática |\n")
         summary.write("|---|---:|---:|---|\n")
@@ -157,13 +190,13 @@ def main() -> None:
             f"| Pipeline de testes | 50% | **{display_score(score_pipeline):.2f}** | Taxa de aprovação dos testes GAP: **{gap_pass_rate * 100:.2f}%** ({gap_passed}/{gap_total}) |\n"
         )
         summary.write(
-            f"| Documentação do código | 10% | **{display_score(score_documentation):.2f}** | Sonar `new_lines` = **{total_new_lines}**, issues `documentation` = **{documentation_smells}** |\n"
+            f"| Documentação do código | 10% | **{display_score(score_documentation):.2f}** | Sonar `new_lines` = **{total_new_lines}**, linhas alteradas = **{total_changed_lines}**, issues `documentation` = **{documentation_smells}** |\n"
         )
         summary.write(
             f"| Implementação de exceções customizadas | 10% | **{display_score(score_exception):.2f}** | Taxa de aprovação dos testes `Excecao`: **{exception_pass_rate * 100:.2f}%** ({exception_passed}/{exception_total}) |\n"
         )
         summary.write(
-            f"| Aderência às convenções do C# | 10% | **{display_score(score_convention):.2f}** | Sonar `new_lines` = **{total_new_lines}**, issues `convention` = **{convention_smells}** |\n"
+            f"| Aderência às convenções do C# | 10% | **{display_score(score_convention):.2f}** | Sonar `new_lines` = **{total_new_lines}**, linhas alteradas = **{total_changed_lines}**, issues `convention` = **{convention_smells}** |\n"
         )
         summary.write(
             f"| Somatório dos pontos | 80% | **{display_score(score_pipeline + score_documentation + score_exception + score_convention):.2f}** | Pontuação parcial alcançada |\n"
