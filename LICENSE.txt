@@ -1,6 +1,3 @@
-Enrico Ricarte - RM558571  
-Pedro Gaspar - RM554887  
-Victor Freire - RM556191
 
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
