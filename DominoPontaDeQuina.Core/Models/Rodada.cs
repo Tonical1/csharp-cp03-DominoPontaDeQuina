@@ -53,22 +53,41 @@ public class Rodada() : IRodada
     /// <inheritdoc />
     public bool VerificarBatida()
     {
-        // TODO ALUNO: implementar a logica para verificar se houve batida.
-        throw new NotImplementedException();
+        if (JogadorAtual.EstaSemPecas())
+        {
+            Status = StatusRodada.Finalizada;
+            TipoFinalizacao = TipoFinalizacaoRodada.JogadorBateu;
+            return true;
+        }
+        return false;
     }
 
     /// <inheritdoc />
     public bool VerificarTabuleiroTravado()
     {
-        // TODO ALUNO: implementar a logica para verificar se houve travamento.
-        throw new NotImplementedException();
+        if (Tabuleiro.EstaTravado(_jogadores))
+        {
+            Status = StatusRodada.Finalizada;
+            TipoFinalizacao = TipoFinalizacaoRodada.TabuleiroTravado;
+            return true;
+        }
+        return false;
     }
 
     /// <inheritdoc />
     public Jogador? GetVencedor()
     {
-        // TODO ALUNO: implementar a logica para obter o vencedor da rodada.
-        throw new NotImplementedException();
+        if (TipoFinalizacao == TipoFinalizacaoRodada.JogadorBateu)
+        {
+            return JogadorAtual.Jogador;
+        }
+        else if (TipoFinalizacao == TipoFinalizacaoRodada.TabuleiroTravado)
+        {
+            return _jogadores
+                .OrderBy(mao => mao.SomarPecasNaMao())
+                .FirstOrDefault()?.Jogador;
+        }
+        return null;
     }
 
     /// <summary>
@@ -78,8 +97,23 @@ public class Rodada() : IRodada
     /// <returns>A lista de maos distribuidas para os jogadores.</returns>
     private List<MaoJogador> DistribuirPecas(ReadOnlyCollection<Jogador> jogadores)
     {
-        // TODO ALUNO: implementar a distribuicao das pecas entre os jogadores.
-        throw new NotImplementedException();
+        var pecasDisponiveis = GerarTodasAsPecas();
+        var random = new Random();
+        pecasDisponiveis = pecasDisponiveis.OrderBy(_ => random.Next()).ToList();
+
+        var maos = jogadores.Select(jogador => new MaoJogador(jogador)).ToList();
+        int pecasPorJogador = pecasDisponiveis.Count / jogadores.Count;
+
+        for (int i = 0; i < pecasPorJogador; i++)
+        {
+            foreach (var mao in maos)
+            {
+                mao.AdicionarPeca(pecasDisponiveis.First());
+                pecasDisponiveis.RemoveAt(0);
+            }
+        }
+
+        return maos;
     }
 
     /// <summary>
@@ -94,11 +128,9 @@ public class Rodada() : IRodada
         {
             return rodadaAnterior.GetVencedor();
         }
-        else
-        {
-            // TODO ALUNO: implementar a logica para obter o primeiro jogador da rodada.
-            throw new NotImplementedException();
-        }
+
+        return jogadores.FirstOrDefault(mao => mao.PossuiSena())?.Jogador
+            ?? jogadores.First().Jogador;
     }
 
     /// <summary>
@@ -108,8 +140,14 @@ public class Rodada() : IRodada
     /// <param name="primeiroJogador">O jogador que iniciara a rodada.</param>
     private void OrganizaJogadores(List<MaoJogador> jogadores, Jogador primeiroJogador)
     {
-        // TODO ALUNO: montar a fila de jogadores da rodada a partir do primeiro jogador definido.
-        throw new NotImplementedException();
+        while (jogadores.First().Jogador != primeiroJogador)
+        {
+            var mao = jogadores.First();
+            jogadores.RemoveAt(0);
+            jogadores.Add(mao);
+        }
+
+        _jogadores = new Queue<MaoJogador>(jogadores);
     }
 
     /// <summary>
@@ -117,7 +155,21 @@ public class Rodada() : IRodada
     /// </summary>
     private void CalcularPontuacao()
     {
-        // TODO ALUNO: implementar a logica para calcular a pontuacao dos jogadores ao final da rodada.
-        throw new NotImplementedException();
+        var pontos = Tabuleiro.SomarPontasExternas();
+        JogadorAtual.Jogador.AdicionarPontos(pontos);
+    }
+    private List<Peca> GerarTodasAsPecas()
+    {
+        var pecas = new List<Peca>();
+
+        for (int i = 0; i <= 6; i++)
+        {
+            for (int j = i; j <= 6; j++)
+            {
+                pecas.Add(new Peca(i, j));
+            }
+        }
+
+        return pecas;
     }
 }

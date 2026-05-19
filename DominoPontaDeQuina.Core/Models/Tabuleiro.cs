@@ -40,8 +40,14 @@ public class Tabuleiro
     /// <returns><see langword="true"/> quando a peca puder ser colada; caso contrario, <see langword="false"/>.</returns>
     public bool PodeColar(Peca peca, LadoTabuleiro lado)
     {
-        // TODO ALUNO: validar se a peca pode ser colada no lado escolhido.
-        throw new NotImplementedException();
+        if (EstaVazio) return true;
+
+        return lado switch
+        {
+            LadoTabuleiro.Esquerda => PontaEsquerda.HasValue && peca.PossuiValor(PontaEsquerda.Value),
+            LadoTabuleiro.Direita => PontaDireita.HasValue && peca.PossuiValor(PontaDireita.Value),
+            _ => false
+        };
     }
 
     /// <summary>
@@ -52,8 +58,23 @@ public class Tabuleiro
     /// <param name="lado">O lado do tabuleiro.</param>
     public void Colar(Peca peca, LadoTabuleiro lado)
     {
-        // TODO ALUNO: posicionar a peca no lado escolhido, invertendo quando necessario.
-        throw new NotImplementedException();
+        if (!PodeColar(peca, lado))
+            throw new InvalidOperationException("A peça não pode ser colada no lado especificado.");
+
+        if (lado == LadoTabuleiro.Esquerda)
+        {
+            if (peca.PossuiValor(PontaEsquerda.Value) && peca.ValorB != PontaEsquerda.Value)
+                peca = peca.Inverter();
+
+            Pecas.Insert(0, peca);
+        }
+        else if (lado == LadoTabuleiro.Direita)
+        {
+            if (peca.PossuiValor(PontaDireita.Value) && peca.ValorA != PontaDireita.Value)
+                peca = peca.Inverter();
+
+            Pecas.Add(peca);
+        }
     }
 
     /// <summary>
@@ -72,8 +93,14 @@ public class Tabuleiro
     /// <returns><see langword="true"/> quando o tabuleiro estiver travado; caso contrario, <see langword="false"/>.</returns>
     public bool EstaTravado(IEnumerable<MaoJogador> maosJogadores)
     {
-        // TODO ALUNO: implementar a regra de travamento do tabuleiro.
-        throw new NotImplementedException();
+        if (EstaVazio) return false;
+
+        var pontaEsq = PontaEsquerda;
+        var pontaDir = PontaDireita;
+
+        return maosJogadores.All(mao =>
+            mao._pecas.All(peca =>
+                !peca.PossuiValor(pontaEsq.Value) && !peca.PossuiValor(pontaDir.Value)));
     }
 
     /// <summary>

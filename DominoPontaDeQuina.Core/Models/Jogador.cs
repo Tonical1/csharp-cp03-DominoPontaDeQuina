@@ -8,13 +8,18 @@ namespace DominoPontaDeQuina.Core.Models;
 /// <param name="nome">O nome do jogador.</param>
 public class Jogador(string nome)
 {
-    /// <summary>
-    /// Obtem o identificador unico do jogador.
-    /// </summary>
     public Guid Id { get; } = Guid.NewGuid();
-
-    /// <summary>
-    /// Obtem o nome exibido do jogador na partida.
-    /// </summary>
     public string Nome { get; } = nome;
+
+    private int _pontuacao;
+
+    public int Pontuacao => _pontuacao;
+
+    public void AdicionarPontos(int pontos)
+    {
+        if (pontos < 0)
+            throw new ArgumentOutOfRangeException(nameof(pontos), "A pontuação não pode ser negativa.");
+
+        _pontuacao += pontos;
+    }
 }

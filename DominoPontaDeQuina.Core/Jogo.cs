@@ -31,7 +31,28 @@ public class Jogo()
     public Task RegistrarTimesAsync()
     {
         // TODO ALUNO: registrar os times e jogadores da partida antes do inicio da primeira rodada.
-        throw new NotImplementedException();
+
+        if (PartidaAtual is null)
+            throw new InvalidOperationException("Nao ha partida atual.");
+
+        Jogador jogador1 = new Jogador("Pedro Gaspar");
+        Jogador jogador2 = new Jogador("Enrico Ricarte");
+        Jogador jogador3 = new Jogador("Victor Freire");
+        Jogador jogador4 = new Jogador("Bruno Biletsky");
+        Jogador coach = new Jogador("Eduardo Vicentini");
+
+        Time time1 = new Time("Time BitWise");
+        time1.Jogadores.Add(jogador1);
+        time1.Jogadores.Add(jogador3);
+
+        Time time2 = new Time("Time EvilBit");
+        time2.Jogadores.Add(jogador2);
+        time2.Jogadores.Add(jogador4);
+
+        PartidaAtual.Times.Add(time1);
+        PartidaAtual.Times.Add(time2);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -129,9 +150,37 @@ public class Jogo()
     public bool ValidarJogada(Jogada jogada)
     {
         // TODO ALUNO: validar se a jogada e compativel com o estado atual do tabuleiro.
-        throw new NotImplementedException();
-    }
 
+        if (PartidaAtual?.RodadaAtual is null)
+            return false;
+
+        var rodada = PartidaAtual.RodadaAtual;
+        var tabuleiro = rodada.Tabuleiro;
+
+        if (jogada.EhPassarVez())
+        {
+            if (tabuleiro.EstaVazio)
+                return false;
+
+            var pontaEsq = tabuleiro.PontaEsquerda;
+            var pontaDir = tabuleiro.PontaDireita;
+
+            var pecas = rodada.JogadorAtual._pecas;
+
+            bool temPecaCompativel = pecas != null &&
+                pecas.Any(p =>
+                    (pontaEsq.HasValue && p.PossuiValor(pontaEsq.Value)) ||
+                    (pontaDir.HasValue && p.PossuiValor(pontaDir.Value)));
+
+            return !temPecaCompativel;
+        }
+
+        if (jogada.Peca is null || jogada.Lado is null)
+            return false;
+
+        return tabuleiro.EstaVazio ||
+               tabuleiro.PodeColar(jogada.Peca.Value, jogada.Lado.Value);
+    }
     /// <summary>
     /// Obtem os jogadores registrados nos times da partida atual.
     /// </summary>
