@@ -36,21 +36,7 @@ public class Partida(int pontuacaoAlvo = 50) : IPartida
     /// <inheritdoc />
     public Dictionary<Time, int> GetPontuacaoTimes()
     {
-        var pontuacaoTimes = Times.ToDictionary(time => time, time => 0);
-
-        foreach (var rodada in HistoricoRodadas)
-        {
-            foreach (var time in Times)
-            {
-                var pontosRodada = rodada.HistoricoJogadas
-                    .Where(jogada => time.PossuiJogador(jogada.Jogador))
-                    .Sum(jogada => rodada.Tabuleiro.SomarPontasExternas());
-
-                pontuacaoTimes[time] += pontosRodada;
-            }
-        }
-
-        return pontuacaoTimes;
+        return Times.ToDictionary(time => time, time => time.Pontuacao);
     }
 
     /// <inheritdoc />
@@ -75,7 +61,7 @@ public class Partida(int pontuacaoAlvo = 50) : IPartida
     public void IniciarNovaRodada()
     {
         if (Status is StatusPartida.Finalizada)
-            throw new InvalidOperationException("Não é possível iniciar uma nova rodada em uma partida finalizada.");
+            throw new DominioException("Nao e possivel iniciar uma nova rodada em uma partida finalizada.");
         Status = StatusPartida.EmAndamento;
         _rodadas.Push(new());
     }
@@ -84,7 +70,7 @@ public class Partida(int pontuacaoAlvo = 50) : IPartida
     public void FinalizarPartida()
     {
         if (Status is not StatusPartida.EmAndamento)
-            throw new InvalidOperationException("Não é possível finalizar uma partida que não está em andamento.");
+            throw new DominioException("Nao e possivel finalizar uma partida que nao esta em andamento.");
         if(VerificaPontuacaoAlvoAtingida())
             Status = StatusPartida.Finalizada;
     }

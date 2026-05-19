@@ -18,7 +18,7 @@ public class Jogador(string nome)
     public void AdicionarPontos(int pontos)
     {
         if (pontos < 0)
-            throw new ArgumentOutOfRangeException(nameof(pontos), "A pontuação não pode ser negativa.");
+            throw new DominioException("A pontuacao nao pode ser negativa.");
 
         _pontuacao += pontos;
     }

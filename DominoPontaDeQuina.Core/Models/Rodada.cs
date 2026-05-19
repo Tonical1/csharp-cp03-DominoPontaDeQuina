@@ -44,7 +44,7 @@ public class Rodada() : IRodada
     /// <inheritdoc />
     public void RegistrarJogada(Jogada jogada)
     {
-        ArgumentNullException.ThrowIfNull(jogada);
+        if (jogada is null) throw new DominioException("A jogada nao pode ser nula.");
         jogada.MarcarComoAplicada();
         Jogadas.Push(jogada);
         CalcularPontuacao();
@@ -155,6 +155,7 @@ public class Rodada() : IRodada
     /// </summary>
     private void CalcularPontuacao()
     {
+        if (_jogadores.Count == 0) return;
         var pontos = Tabuleiro.SomarPontasExternas();
         JogadorAtual.Jogador.AdicionarPontos(pontos);
     }

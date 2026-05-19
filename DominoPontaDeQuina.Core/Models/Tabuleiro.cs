@@ -59,18 +59,18 @@ public class Tabuleiro
     public void Colar(Peca peca, LadoTabuleiro lado)
     {
         if (!PodeColar(peca, lado))
-            throw new InvalidOperationException("A peça não pode ser colada no lado especificado.");
+            throw new DominioException("A peca nao pode ser colada no lado especificado.");
 
         if (lado == LadoTabuleiro.Esquerda)
         {
-            if (peca.PossuiValor(PontaEsquerda.Value) && peca.ValorB != PontaEsquerda.Value)
+            if (!EstaVazio && peca.PossuiValor(PontaEsquerda!.Value) && peca.ValorB != PontaEsquerda!.Value)
                 peca = peca.Inverter();
 
             Pecas.Insert(0, peca);
         }
         else if (lado == LadoTabuleiro.Direita)
         {
-            if (peca.PossuiValor(PontaDireita.Value) && peca.ValorA != PontaDireita.Value)
+            if (!EstaVazio && peca.PossuiValor(PontaDireita!.Value) && peca.ValorA != PontaDireita!.Value)
                 peca = peca.Inverter();
 
             Pecas.Add(peca);
